@@ -25,6 +25,15 @@ import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.auth.password.PasswordAuthenticator;
 import org.apache.sshd.server.auth.pubkey.RejectAllPublickeyAuthenticator;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
+import org.apache.sshd.common.NamedFactory;
+import org.apache.sshd.common.kex.KeyExchange;
+import org.apache.sshd.common.mac.Mac;
+import org.apache.sshd.common.signature.Signature;
+import org.apache.sshd.server.kex.DHGEXServer;
+import org.apache.sshd.server.kex.DHGServer;
+import org.apache.sshd.common.kex.extension.KexExtensionHandler;
+import java.util.Arrays;
+import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
@@ -90,6 +99,41 @@ public class SshShellConfiguration {
         server.setPort(properties.getPort());
         server.setShellFactory(channelSession -> shellCommandFactory);
         server.setCommandFactory((channelSession, s) -> shellCommandFactory);
+        
+        // Configure secure algorithms only - remove failed algorithms from ssh-audit
+        
+        // Key exchange algorithms - remove NIST curve based algorithms
+        server.setKeyExchangeFactories(Arrays.asList(
+            "sntrup761x25519-sha512",
+            "sntrup761x25519-sha512@openssh.com", 
+            "mlkem768x25519-sha256",
+            "curve25519-sha256",
+            "curve25519-sha256@libssh.org",
+            "curve448-sha512",
+            "diffie-hellman-group-exchange-sha256",
+            "diffie-hellman-group18-sha512",
+            "diffie-hellman-group17-sha512", 
+            "diffie-hellman-group16-sha512",
+            "diffie-hellman-group15-sha512",
+            "diffie-hellman-group14-sha256"
+        ));
+        
+        // Host key algorithms - remove NIST curve based algorithms
+        server.setSignatureFactories(Arrays.asList(
+            "rsa-sha2-512",
+            "rsa-sha2-256", 
+            "ssh-rsa",
+            "ssh-ed25519"
+        ));
+        
+        // MAC algorithms - remove SHA-1 based algorithms
+        server.setMacFactories(Arrays.asList(
+            "hmac-sha2-256-etm@openssh.com",
+            "hmac-sha2-512-etm@openssh.com",
+            "hmac-sha2-256",
+            "hmac-sha2-512"
+        ));
+        
         return server;
     }
 
