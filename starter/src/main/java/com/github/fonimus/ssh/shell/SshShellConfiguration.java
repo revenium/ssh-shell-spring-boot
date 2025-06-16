@@ -25,6 +25,7 @@ import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.auth.password.PasswordAuthenticator;
 import org.apache.sshd.server.auth.pubkey.RejectAllPublickeyAuthenticator;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
+import org.apache.sshd.common.config.keys.KeyUtils;
 import org.apache.sshd.common.NamedFactory;
 import org.apache.sshd.common.kex.KeyExchange;
 import org.apache.sshd.common.mac.Mac;
@@ -83,7 +84,11 @@ public class SshShellConfiguration {
     @Bean
     public SshServer sshServer() throws IOException {
         SshServer server = SshServer.setUpDefaultServer();
-        server.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(properties.getHostKeyFile().toPath()));
+        
+        // Configure host key provider to only generate secure key types (no NIST curves)
+        SimpleGeneratorHostKeyProvider keyProvider = new SimpleGeneratorHostKeyProvider(properties.getHostKeyFile().toPath());
+        keyProvider.setAlgorithm(KeyUtils.RSA_ALGORITHM);  // Use RSA instead of ECDSA with NIST curves
+        server.setKeyPairProvider(keyProvider);
         server.setHost(properties.getHost());
         server.setPasswordAuthenticator(passwordAuthenticator);
         server.setPublickeyAuthenticator(RejectAllPublickeyAuthenticator.INSTANCE);
