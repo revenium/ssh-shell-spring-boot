@@ -123,21 +123,8 @@ public class SshShellConfiguration {
             server.setKeyExchangeFactories(kexFactories);
         }
         
-        // Host key algorithms - remove NIST curve based algorithms  
-        List<String> insecureSignatureAlgorithms = Arrays.asList(
-            "ecdsa-sha2-nistp256",
-            "ecdsa-sha2-nistp384", 
-            "ecdsa-sha2-nistp521"
-        );
-        
-        List<NamedFactory<Signature>> signatureFactories = server.getSignatureFactories().stream()
-            .filter(factory -> !insecureSignatureAlgorithms.contains(factory.getName()))
-            .collect(Collectors.toList());
-        
-        // Only set if we have remaining factories
-        if (!signatureFactories.isEmpty()) {
-            server.setSignatureFactories(signatureFactories);
-        }
+        // Note: Not filtering signature factories to avoid "no resolved signatures available" error
+        // The host key provider will determine which keys are actually used
         
         // MAC algorithms - remove SHA-1 based algorithms
         List<String> insecureMacAlgorithms = Arrays.asList(
