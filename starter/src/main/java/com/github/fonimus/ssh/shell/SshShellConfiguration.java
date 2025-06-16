@@ -95,15 +95,20 @@ public class SshShellConfiguration {
         server.setPublickeyAuthenticator(RejectAllPublickeyAuthenticator.INSTANCE);
         if (properties.getAuthorizedPublicKeys() != null) {
             if (properties.getAuthorizedPublicKeys().exists()) {
+                File publicKeysFile = getFile(properties.getAuthorizedPublicKeys());
                 server.setPublickeyAuthenticator(
-                        new SshShellPublicKeyAuthenticationProvider(getFile(properties.getAuthorizedPublicKeys()))
+                        new SshShellPublicKeyAuthenticationProvider(publicKeysFile)
                 );
-                LOGGER.info("Using authorized public keys from : {}",
-                        properties.getAuthorizedPublicKeys().getDescription());
+                LOGGER.info("Using authorized public keys from : {} (resolved to: {})",
+                        properties.getAuthorizedPublicKeys().getDescription(), publicKeysFile.getAbsolutePath());
+                LOGGER.debug("Public key file exists: {}, readable: {}, size: {} bytes", 
+                        publicKeysFile.exists(), publicKeysFile.canRead(), publicKeysFile.length());
             } else {
                 LOGGER.warn("Could not read authorized public keys from : {}, public key authentication is disabled.",
                         properties.getAuthorizedPublicKeys().getDescription());
             }
+        } else {
+            LOGGER.info("No authorized public keys configured, public key authentication is disabled");
         }
         server.setPort(properties.getPort());
         server.setShellFactory(channelSession -> shellCommandFactory);

@@ -43,9 +43,18 @@ public class SshShellPublicKeyAuthenticationProvider
 
     @Override
     public boolean authenticate(String username, PublicKey key, ServerSession session) {
+        LOGGER.debug("Attempting public key authentication for user: {}", username);
+        LOGGER.debug("Public key algorithm: {}, format: {}", key.getAlgorithm(), key.getFormat());
+        
         boolean authenticated = super.authenticate(username, key, session);
+        
+        LOGGER.debug("Public key authentication result for user {}: {}", username, authenticated);
+        
         if (authenticated) {
             session.getIoSession().setAttribute(AUTHENTICATION_ATTRIBUTE, new SshAuthentication(username, username));
+            LOGGER.info("Successfully authenticated user {} with public key", username);
+        } else {
+            LOGGER.warn("Public key authentication failed for user: {}", username);
         }
         return authenticated;
     }
