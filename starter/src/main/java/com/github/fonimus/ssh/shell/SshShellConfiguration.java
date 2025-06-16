@@ -88,6 +88,7 @@ public class SshShellConfiguration {
         // Configure host key provider to only generate secure key types (no NIST curves)
         SimpleGeneratorHostKeyProvider keyProvider = new SimpleGeneratorHostKeyProvider(properties.getHostKeyFile().toPath());
         keyProvider.setAlgorithm(KeyUtils.RSA_ALGORITHM);  // Use RSA instead of ECDSA with NIST curves
+        keyProvider.setKeySize(3072);  // Use 3072-bit RSA for better security than 2048-bit
         server.setKeyPairProvider(keyProvider);
         server.setHost(properties.getHost());
         server.setPasswordAuthenticator(passwordAuthenticator);
@@ -128,8 +129,19 @@ public class SshShellConfiguration {
             server.setKeyExchangeFactories(kexFactories);
         }
         
-        // Note: Not filtering signature factories to avoid "no resolved signatures available" error
-        // The host key provider will determine which keys are actually used
+        // Filter out insecure signature algorithms (ssh-rsa uses SHA-1)
+        List<String> insecureSignatureAlgorithms = Arrays.asList(
+            "ssh-rsa"  // Uses broken SHA-1 hash algorithm
+        );
+        
+        List<NamedFactory<Signature>> signatureFactories = server.getSignatureFactories().stream()
+            .filter(factory -> !insecureSignatureAlgorithms.contains(factory.getName()))
+            .collect(Collectors.toList());
+        
+        // Only set if we have remaining factories
+        if (!signatureFactories.isEmpty()) {
+            server.setSignatureFactories(signatureFactories);
+        }
         
         // MAC algorithms - remove SHA-1 based algorithms
         List<String> insecureMacAlgorithms = Arrays.asList(
