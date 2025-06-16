@@ -50,6 +50,10 @@ public class SshShellPublicKeyAuthenticationProvider
         try {
             String keyString = java.util.Base64.getEncoder().encodeToString(key.getEncoded());
             LOGGER.info("Client public key (base64): {} {}", key.getAlgorithm(), keyString);
+            
+            // Convert to OpenSSH format for comparison
+            String opensshFormat = convertToOpenSSHFormat(key);
+            LOGGER.info("Client public key (OpenSSH format): {}", opensshFormat);
         } catch (Exception e) {
             LOGGER.warn("Could not encode public key for logging: {}", e.getMessage());
         }
@@ -65,5 +69,24 @@ public class SshShellPublicKeyAuthenticationProvider
             LOGGER.warn("Public key authentication failed for user: {} - key not found in authorized keys file", username);
         }
         return authenticated;
+    }
+    
+    private String convertToOpenSSHFormat(PublicKey key) {
+        try {
+            if (key.getAlgorithm().equals("RSA")) {
+                // For RSA keys, convert X.509 format to OpenSSH format
+                String base64Key = java.util.Base64.getEncoder().encodeToString(key.getEncoded());
+                return "ssh-rsa " + base64Key;
+            } else if (key.getAlgorithm().equals("DSA")) {
+                String base64Key = java.util.Base64.getEncoder().encodeToString(key.getEncoded());
+                return "ssh-dss " + base64Key;
+            } else if (key.getAlgorithm().equals("EC")) {
+                String base64Key = java.util.Base64.getEncoder().encodeToString(key.getEncoded());
+                return "ecdsa-sha2-nistp256 " + base64Key; // This might need adjustment based on curve
+            }
+            return "unknown-format " + java.util.Base64.getEncoder().encodeToString(key.getEncoded());
+        } catch (Exception e) {
+            return "conversion-failed: " + e.getMessage();
+        }
     }
 }
