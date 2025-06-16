@@ -43,22 +43,20 @@ public class SshShellPublicKeyAuthenticationProvider
 
     @Override
     public boolean authenticate(String username, PublicKey key, ServerSession session) {
-        LOGGER.debug("Attempting public key authentication for user: {}", username);
-        LOGGER.debug("Public key algorithm: {}, format: {}", key.getAlgorithm(), key.getFormat());
+        LOGGER.info("Attempting public key authentication for user: {}", username);
+        LOGGER.info("Client public key - Algorithm: {}, Format: {}", key.getAlgorithm(), key.getFormat());
         
         // Log the public key details for debugging
         try {
             String keyString = java.util.Base64.getEncoder().encodeToString(key.getEncoded());
-            LOGGER.debug("Public key (base64): {}...{}", 
-                keyString.substring(0, Math.min(50, keyString.length())), 
-                keyString.length() > 50 ? keyString.substring(keyString.length() - 10) : "");
+            LOGGER.info("Client public key (base64): {} {}", key.getAlgorithm(), keyString);
         } catch (Exception e) {
-            LOGGER.debug("Could not encode public key for logging: {}", e.getMessage());
+            LOGGER.warn("Could not encode public key for logging: {}", e.getMessage());
         }
         
         boolean authenticated = super.authenticate(username, key, session);
         
-        LOGGER.debug("Public key authentication result for user {}: {}", username, authenticated);
+        LOGGER.info("Public key authentication result for user {}: {}", username, authenticated);
         
         if (authenticated) {
             session.getIoSession().setAttribute(AUTHENTICATION_ATTRIBUTE, new SshAuthentication(username, username));
