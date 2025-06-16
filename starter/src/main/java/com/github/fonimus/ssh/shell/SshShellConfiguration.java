@@ -106,47 +106,53 @@ public class SshShellConfiguration {
         // Configure secure algorithms only - remove failed algorithms from ssh-audit
         
         // Key exchange algorithms - remove NIST curve based algorithms
-        List<String> secureKexAlgorithms = Arrays.asList(
-            "curve25519-sha256",
-            "curve25519-sha256@libssh.org",
-            "diffie-hellman-group-exchange-sha256",
-            "diffie-hellman-group18-sha512",
-            "diffie-hellman-group17-sha512", 
-            "diffie-hellman-group16-sha512",
-            "diffie-hellman-group15-sha512",
-            "diffie-hellman-group14-sha256"
+        List<String> insecureKexAlgorithms = Arrays.asList(
+            "ecdh-sha2-nistp256",
+            "ecdh-sha2-nistp384",
+            "ecdh-sha2-nistp521",
+            "mlkem1024nistp384-sha384",
+            "mlkem768nistp256-sha256"
         );
         
         List<KeyExchangeFactory> kexFactories = server.getKeyExchangeFactories().stream()
-            .filter(factory -> secureKexAlgorithms.contains(factory.getName()))
+            .filter(factory -> !insecureKexAlgorithms.contains(factory.getName()))
             .collect(Collectors.toList());
-        server.setKeyExchangeFactories(kexFactories);
+        
+        // Only set if we have remaining factories
+        if (!kexFactories.isEmpty()) {
+            server.setKeyExchangeFactories(kexFactories);
+        }
         
         // Host key algorithms - remove NIST curve based algorithms  
-        List<String> secureSignatureAlgorithms = Arrays.asList(
-            "rsa-sha2-512",
-            "rsa-sha2-256", 
-            "ssh-rsa",
-            "ssh-ed25519"
+        List<String> insecureSignatureAlgorithms = Arrays.asList(
+            "ecdsa-sha2-nistp256",
+            "ecdsa-sha2-nistp384", 
+            "ecdsa-sha2-nistp521"
         );
         
         List<NamedFactory<Signature>> signatureFactories = server.getSignatureFactories().stream()
-            .filter(factory -> secureSignatureAlgorithms.contains(factory.getName()))
+            .filter(factory -> !insecureSignatureAlgorithms.contains(factory.getName()))
             .collect(Collectors.toList());
-        server.setSignatureFactories(signatureFactories);
+        
+        // Only set if we have remaining factories
+        if (!signatureFactories.isEmpty()) {
+            server.setSignatureFactories(signatureFactories);
+        }
         
         // MAC algorithms - remove SHA-1 based algorithms
-        List<String> secureMacAlgorithms = Arrays.asList(
-            "hmac-sha2-256-etm@openssh.com",
-            "hmac-sha2-512-etm@openssh.com",
-            "hmac-sha2-256",
-            "hmac-sha2-512"
+        List<String> insecureMacAlgorithms = Arrays.asList(
+            "hmac-sha1",
+            "hmac-sha1-etm@openssh.com"
         );
         
         List<NamedFactory<Mac>> macFactories = server.getMacFactories().stream()
-            .filter(factory -> secureMacAlgorithms.contains(factory.getName()))
+            .filter(factory -> !insecureMacAlgorithms.contains(factory.getName()))
             .collect(Collectors.toList());
-        server.setMacFactories(macFactories);
+        
+        // Only set if we have remaining factories
+        if (!macFactories.isEmpty()) {
+            server.setMacFactories(macFactories);
+        }
         
         return server;
     }
