@@ -130,7 +130,7 @@ public class SshShellConfiguration {
             "ssh-ed25519"
         );
         
-        List<SignatureFactory> signatureFactories = server.getSignatureFactories().stream()
+        List<NamedFactory<Signature>> signatureFactories = server.getSignatureFactories().stream()
             .filter(factory -> secureSignatureAlgorithms.contains(factory.getName()))
             .collect(Collectors.toList());
         server.setSignatureFactories(signatureFactories);
@@ -143,7 +143,7 @@ public class SshShellConfiguration {
             "hmac-sha2-512"
         );
         
-        List<MacFactory> macFactories = server.getMacFactories().stream()
+        List<NamedFactory<Mac>> macFactories = server.getMacFactories().stream()
             .filter(factory -> secureMacAlgorithms.contains(factory.getName()))
             .collect(Collectors.toList());
         server.setMacFactories(macFactories);
