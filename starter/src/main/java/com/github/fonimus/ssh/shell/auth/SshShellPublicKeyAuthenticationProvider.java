@@ -46,6 +46,16 @@ public class SshShellPublicKeyAuthenticationProvider
         LOGGER.debug("Attempting public key authentication for user: {}", username);
         LOGGER.debug("Public key algorithm: {}, format: {}", key.getAlgorithm(), key.getFormat());
         
+        // Log the public key details for debugging
+        try {
+            String keyString = java.util.Base64.getEncoder().encodeToString(key.getEncoded());
+            LOGGER.debug("Public key (base64): {}...{}", 
+                keyString.substring(0, Math.min(50, keyString.length())), 
+                keyString.length() > 50 ? keyString.substring(keyString.length() - 10) : "");
+        } catch (Exception e) {
+            LOGGER.debug("Could not encode public key for logging: {}", e.getMessage());
+        }
+        
         boolean authenticated = super.authenticate(username, key, session);
         
         LOGGER.debug("Public key authentication result for user {}: {}", username, authenticated);
@@ -54,7 +64,7 @@ public class SshShellPublicKeyAuthenticationProvider
             session.getIoSession().setAttribute(AUTHENTICATION_ATTRIBUTE, new SshAuthentication(username, username));
             LOGGER.info("Successfully authenticated user {} with public key", username);
         } else {
-            LOGGER.warn("Public key authentication failed for user: {}", username);
+            LOGGER.warn("Public key authentication failed for user: {} - key not found in authorized keys file", username);
         }
         return authenticated;
     }

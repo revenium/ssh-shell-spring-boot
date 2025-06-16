@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.util.List;
 
 /**
  * Ssh shell configuration
@@ -103,6 +104,27 @@ public class SshShellConfiguration {
                         properties.getAuthorizedPublicKeys().getDescription(), publicKeysFile.getAbsolutePath());
                 LOGGER.debug("Public key file exists: {}, readable: {}, size: {} bytes", 
                         publicKeysFile.exists(), publicKeysFile.canRead(), publicKeysFile.length());
+                
+                // Log the contents of the authorized keys file for debugging
+                try {
+                    List<String> lines = Files.readAllLines(publicKeysFile.toPath());
+                    LOGGER.debug("Authorized keys file contains {} lines", lines.size());
+                    for (int i = 0; i < lines.size(); i++) {
+                        String line = lines.get(i).trim();
+                        if (!line.isEmpty() && !line.startsWith("#")) {
+                            String[] parts = line.split("\\s+");
+                            if (parts.length >= 2) {
+                                LOGGER.debug("Key {}: {} {}...{}", i + 1, parts[0], 
+                                    parts[1].substring(0, Math.min(20, parts[1].length())),
+                                    parts[1].length() > 20 ? parts[1].substring(parts[1].length() - 10) : "");
+                            } else {
+                                LOGGER.debug("Key {}: Invalid format - {}", i + 1, line.substring(0, Math.min(50, line.length())));
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("Could not read authorized keys file for debugging: {}", e.getMessage());
+                }
             } else {
                 LOGGER.warn("Could not read authorized public keys from : {}, public key authentication is disabled.",
                         properties.getAuthorizedPublicKeys().getDescription());
