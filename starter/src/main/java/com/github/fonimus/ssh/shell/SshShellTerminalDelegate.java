@@ -52,6 +52,8 @@ public class SshShellTerminalDelegate implements Terminal {
         this.delegate = delegate;
     }
 
+
+
     private Terminal delegate() {
         SshContext current = SSH_THREAD_CONTEXT.get();
         if (current != null && current.getTerminal() != null) {
@@ -220,6 +222,21 @@ public class SshShellTerminalDelegate implements Terminal {
     }
 
     @Override
+    public MouseEvent readMouseEvent(IntSupplier intSupplier, String string) {
+        return delegate().readMouseEvent(intSupplier);
+    }
+
+    @Override
+    public MouseEvent readMouseEvent(String string) {
+        return delegate().readMouseEvent();
+    }
+
+    @Override
+    public Terminal.MouseTracking getCurrentMouseTracking() {
+        return Terminal.MouseTracking.valueOf("");
+    }
+
+    @Override
     public boolean hasFocusSupport() {
         return delegate().hasFocusSupport();
     }
@@ -238,4 +255,6 @@ public class SshShellTerminalDelegate implements Terminal {
     public void close() throws IOException {
         delegate().close();
     }
+
+
 }
