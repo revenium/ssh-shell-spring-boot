@@ -35,7 +35,6 @@ import org.jline.terminal.Attributes;
 import org.jline.terminal.Size;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.jline.terminal.impl.DumbTerminal;
 import org.springframework.boot.Banner;
 import org.springframework.core.env.Environment;
 import org.springframework.shell.Shell;
@@ -104,58 +103,22 @@ public class SshShellRunnable
         if (sshEnv.getEnv().containsKey(SSH_ENV_LINES)) {
             terminalBuilder.type(sshEnv.getEnv().get(SSH_ENV_TERM));
         }
-        
-        Terminal terminal = null;
-        try {
-            // Try to build terminal normally first
-            terminal = terminalBuilder.build();
-        } catch (IllegalStateException | IOException e) {
-            // If terminal providers are not available (common in Docker), create DumbTerminal directly
-            LOGGER.warn("Terminal providers unavailable (common in Docker), creating DumbTerminal directly: {}", e.getMessage());
-            try {
-                // Create DumbTerminal with proper terminal type
-                String termType = sshEnv.getEnv().getOrDefault(SSH_ENV_TERM, "xterm");
-                terminal = new DumbTerminal(is, os);
-                
-                // Configure terminal attributes for proper echo and formatting
-                Attributes attributes = terminal.getAttributes();
-                // Enable echo for keystrokes
-                attributes.setLocalFlag(Attributes.LocalFlag.ECHO, true);
-                attributes.setLocalFlag(Attributes.LocalFlag.ICANON, true);
-                attributes.setInputFlag(Attributes.InputFlag.ICRNL, true);
-                attributes.setOutputFlag(Attributes.OutputFlag.ONLCR, true);
-                terminal.setAttributes(attributes);
-                
-                // Set size if available
-                if (sizeAvailable && sshEnv.getEnv().containsKey(SSH_ENV_COLUMNS) && sshEnv.getEnv().containsKey(SSH_ENV_LINES)) {
-                    terminal.setSize(new Size(
-                            Integer.parseInt(sshEnv.getEnv().get(SSH_ENV_COLUMNS)),
-                            Integer.parseInt(sshEnv.getEnv().get(SSH_ENV_LINES))
-                    ));
-                }
-            } catch (Exception fallbackException) {
-                LOGGER.error("Failed to create fallback DumbTerminal", fallbackException);
-                quit(1);
-                return;
-            }
-        }
-        
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8);
-             Terminal finalTerminal = terminal
+             Terminal terminal = terminalBuilder.build()
         ) {
 
             try {
-                Attributes attr = finalTerminal.getAttributes();
+                Attributes attr = terminal.getAttributes();
                 SshShellUtils.fill(attr, sshEnv.getPtyModes());
-                finalTerminal.setAttributes(attr);
+                terminal.setAttributes(attr);
 
                 if (sizeAvailable) {
                     sshEnv.addSignalListener((channel, signal) -> {
-                        finalTerminal.setSize(new Size(
+                        terminal.setSize(new Size(
                                 Integer.parseInt(sshEnv.getEnv().get("COLUMNS")),
                                 Integer.parseInt(sshEnv.getEnv().get("LINES"))));
-                        finalTerminal.raise(Terminal.Signal.WINCH);
+                        terminal.raise(Terminal.Signal.WINCH);
                     }, Signal.WINCH);
                 }
 
@@ -163,12 +126,12 @@ public class SshShellRunnable
                     shellBanner.printBanner(environment, this.getClass(), ps);
                 }
 
-                DefaultResultHandler resultHandler = new DefaultResultHandler(finalTerminal);
+                DefaultResultHandler resultHandler = new DefaultResultHandler(terminal);
                 resultHandler.handleResult(baos.toString(StandardCharsets.UTF_8));
                 resultHandler.handleResult("Please type `help` to see available commands");
 
                 LineReader reader = LineReaderBuilder.builder()
-                        .terminal(finalTerminal)
+                        .terminal(terminal)
                         .appName("Spring Ssh Shell")
                         .completer(completer)
                         .highlighter(lineReader.getHighlighter())
@@ -192,7 +155,7 @@ public class SshShellRunnable
                 }
                 reader.setVariable(LineReader.HISTORY_FILE, historyFile.toPath());
 
-                SSH_THREAD_CONTEXT.set(new SshContext(this, finalTerminal, reader, authentication));
+                SSH_THREAD_CONTEXT.set(new SshContext(this, terminal, reader, authentication));
                 shellListenerService.onSessionStarted(session);
                 new InteractiveShellRunner(reader, promptProvider, shell, new DefaultShellContext()).run((String[]) null);
                 shellListenerService.onSessionStopped(session);
