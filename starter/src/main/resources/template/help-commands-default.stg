@@ -1,15 +1,28 @@
 group commands;
 
-commands(commands, unsupportedCommands, message) ::= <<
-<if(message)><message><\n><endif>
-<if(commands)>
+main(model) ::= <<
+<if(model.message)><model.message><\n><endif>
+<if(model.commands)>
 <header()>
-<commands:{c | <command(c)>}; separator="\n">
+<model.commands:{c | <command(c)>}; separator="\n">
 <endif>
-<if(unsupportedCommands)>
+<if(model.unsupportedCommands)>
 
 Currently unsupported commands (type 'help &lt;command>' for details):
-<unsupportedCommands:{c | <command(c)>}; separator="\n">
+<model.unsupportedCommands:{c | <command(c)>}; separator="\n">
+<endif>
+>>
+
+commands(model) ::= <<
+<if(model.message)><model.message><\n><endif>
+<if(model.commands)>
+<header()>
+<model.commands:{c | <command(c)>}; separator="\n">
+<endif>
+<if(model.unsupportedCommands)>
+
+Currently unsupported commands (type 'help &lt;command>' for details):
+<model.unsupportedCommands:{c | <command(c)>}; separator="\n">
 <endif>
 >>
 

@@ -257,9 +257,39 @@ This ensures that:
 - Spring can properly instantiate beans and repositories
 - Commands can access all dependencies
 
+## Template Loading Fix for Help Command
+
+The help command may fail with "template instance 'main' not found" error. This is fixed by:
+
+### 1. Adding 'main' template to help templates
+
+Update `template/help-commands-default.stg` to include a 'main' template:
+
+```stg
+group commands;
+
+main(commands, unsupportedCommands, message) ::= <<
+<if(message)><message><\n><endif>
+<if(commands)>
+<header()>
+<commands:{c | <command(c)>}; separator="\n">
+<endif>
+<if(unsupportedCommands)>
+
+Currently unsupported commands (type 'help &lt;command>' for details):
+<unsupportedCommands:{c | <command(c)>}; separator="\n">
+<endif>
+>>
+```
+
+### 2. Template Configuration Bean
+
+The `SshShellTemplateConfiguration` class ensures templates are loaded with the correct classloader and resource paths.
+
 ## Notes
 
 - The ExternalTerminal approach works best for SSH connections
 - DumbTerminal fallback ensures the application always starts, though with limited terminal features
 - The classloader fix ensures all classes are accessible in SSH sessions
+- The template fix ensures help commands work properly
 - These changes are backward compatible with non-layered deployments

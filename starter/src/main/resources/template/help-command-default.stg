@@ -1,19 +1,36 @@
 group command;
 
-command(command) ::= <<
-<command.name> - <command.description>
+main(model) ::= <<
+<model.command.name> - <model.command.description>
 
 USAGE
-  <command.usage>
+  <model.command.usage>
 
-<if(command.options)>
+<if(model.command.options)>
 OPTIONS
-<command.options:{option | <option(option)>}; separator="\n">
+<model.command.options:{option | <option(option)>}; separator="\n">
 <endif>
 
-<if(command.aliases)>
+<if(model.command.aliases)>
 ALIASES
-<command.aliases; separator=", ">
+<model.command.aliases; separator=", ">
+<endif>
+>>
+
+command(model) ::= <<
+<model.command.name> - <model.command.description>
+
+USAGE
+  <model.command.usage>
+
+<if(model.command.options)>
+OPTIONS
+<model.command.options:{option | <option(option)>}; separator="\n">
+<endif>
+
+<if(model.command.aliases)>
+ALIASES
+<model.command.aliases; separator=", ">
 <endif>
 >>
 
