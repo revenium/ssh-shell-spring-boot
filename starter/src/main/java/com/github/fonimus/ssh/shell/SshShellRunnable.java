@@ -34,7 +34,6 @@ import org.jline.reader.LineReaderBuilder;
 import org.jline.terminal.Attributes;
 import org.jline.terminal.Size;
 import org.jline.terminal.Terminal;
-import org.jline.terminal.TerminalBuilder;
 import org.springframework.boot.Banner;
 import org.springframework.core.env.Environment;
 import org.springframework.shell.Shell;
@@ -83,14 +82,15 @@ public class SshShellRunnable
     @Override
     public void run() {
         LOGGER.debug("{}: running...", session.toString());
-        TerminalBuilder terminalBuilder = TerminalBuilder.builder().system(false).streams(is, os);
+        
+        Size terminalSize = null;
         boolean sizeAvailable = false;
         if (sshEnv.getEnv().containsKey(SSH_ENV_COLUMNS) && sshEnv.getEnv().containsKey(SSH_ENV_LINES)) {
             try {
-                terminalBuilder.size(new Size(
+                terminalSize = new Size(
                         Integer.parseInt(sshEnv.getEnv().get(SSH_ENV_COLUMNS)),
                         Integer.parseInt(sshEnv.getEnv().get(SSH_ENV_LINES))
-                ));
+                );
                 sizeAvailable = true;
             } catch (NumberFormatException e) {
                 if (!LOGGER.isTraceEnabled()) {
@@ -100,12 +100,15 @@ public class SshShellRunnable
                 }
             }
         }
-        if (sshEnv.getEnv().containsKey(SSH_ENV_LINES)) {
-            terminalBuilder.type(sshEnv.getEnv().get(SSH_ENV_TERM));
+        
+        String terminalType = null;
+        if (sshEnv.getEnv().containsKey(SSH_ENV_TERM)) {
+            terminalType = sshEnv.getEnv().get(SSH_ENV_TERM);
         }
+        
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8);
-             Terminal terminal = terminalBuilder.build()
+             Terminal terminal = SshTerminalFactory.createTerminal(is, os, terminalSize, terminalType)
         ) {
 
             try {

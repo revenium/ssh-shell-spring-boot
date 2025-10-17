@@ -11,3 +11,4 @@ samples/public-keys-sample
 
 # mac os
 .DS_Store
+.aider*
