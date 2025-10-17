@@ -1,0 +1,22 @@
+group commands;
+
+commands(commands, unsupportedCommands, message) ::= <<
+<if(message)><message><\n><endif>
+<if(commands)>
+<header()>
+<commands:{c | <command(c)>}; separator="\n">
+<endif>
+<if(unsupportedCommands)>
+
+Currently unsupported commands (type 'help &lt;command>' for details):
+<unsupportedCommands:{c | <command(c)>}; separator="\n">
+<endif>
+>>
+
+header() ::= <<
+Available commands (type 'help &lt;command>' for details):
+>>
+
+command(command) ::= <<
+  <command.name>: <command.description>
+>>

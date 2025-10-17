@@ -224,8 +224,42 @@ If you don't need layered JARs, you can disable them in your `pom.xml`:
 </plugin>
 ```
 
+## Classloading Fix for Layered JARs
+
+When using layered JARs, SSH sessions may fail to load application classes, resulting in `ClassNotFoundException` errors. This happens because SSH threads don't have the correct context classloader.
+
+### Fix in SshShellRunnable
+
+Add classloader management to the `run()` method:
+
+```java
+@Override
+public void run() {
+    // Preserve the main application's classloader for SSH threads
+    ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+    ClassLoader applicationClassLoader = this.getClass().getClassLoader();
+    
+    try {
+        // Set the thread context classloader to the application classloader
+        Thread.currentThread().setContextClassLoader(applicationClassLoader);
+        
+        // ... rest of the run method ...
+        
+    } finally {
+        // Restore the original classloader
+        Thread.currentThread().setContextClassLoader(originalClassLoader);
+    }
+}
+```
+
+This ensures that:
+- SSH threads can access all application classes
+- Spring can properly instantiate beans and repositories
+- Commands can access all dependencies
+
 ## Notes
 
 - The ExternalTerminal approach works best for SSH connections
 - DumbTerminal fallback ensures the application always starts, though with limited terminal features
+- The classloader fix ensures all classes are accessible in SSH sessions
 - These changes are backward compatible with non-layered deployments

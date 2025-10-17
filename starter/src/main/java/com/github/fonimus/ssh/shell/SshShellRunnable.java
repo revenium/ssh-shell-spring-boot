@@ -81,97 +81,111 @@ public class SshShellRunnable
      */
     @Override
     public void run() {
-        LOGGER.debug("{}: running...", session.toString());
+        // Preserve the main application's classloader for SSH threads
+        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+        ClassLoader applicationClassLoader = this.getClass().getClassLoader();
         
-        Size terminalSize = null;
-        boolean sizeAvailable = false;
-        if (sshEnv.getEnv().containsKey(SSH_ENV_COLUMNS) && sshEnv.getEnv().containsKey(SSH_ENV_LINES)) {
-            try {
-                terminalSize = new Size(
-                        Integer.parseInt(sshEnv.getEnv().get(SSH_ENV_COLUMNS)),
-                        Integer.parseInt(sshEnv.getEnv().get(SSH_ENV_LINES))
-                );
-                sizeAvailable = true;
-            } catch (NumberFormatException e) {
-                if (!LOGGER.isTraceEnabled()) {
-                    LOGGER.debug("Unable to get terminal size : {}:{}", e.getClass().getSimpleName(), e.getMessage());
-                } else {
-                    LOGGER.trace("Unable to get terminal size", e);
+        try {
+            // Set the thread context classloader to the application classloader
+            // This ensures Spring can find all classes when running commands in SSH sessions
+            Thread.currentThread().setContextClassLoader(applicationClassLoader);
+            
+            LOGGER.debug("{}: running with classloader: {}", session.toString(), applicationClassLoader);
+            
+            Size terminalSize = null;
+            boolean sizeAvailable = false;
+            if (sshEnv.getEnv().containsKey(SSH_ENV_COLUMNS) && sshEnv.getEnv().containsKey(SSH_ENV_LINES)) {
+                try {
+                    terminalSize = new Size(
+                            Integer.parseInt(sshEnv.getEnv().get(SSH_ENV_COLUMNS)),
+                            Integer.parseInt(sshEnv.getEnv().get(SSH_ENV_LINES))
+                    );
+                    sizeAvailable = true;
+                } catch (NumberFormatException e) {
+                    if (!LOGGER.isTraceEnabled()) {
+                        LOGGER.debug("Unable to get terminal size : {}:{}", e.getClass().getSimpleName(), e.getMessage());
+                    } else {
+                        LOGGER.trace("Unable to get terminal size", e);
+                    }
                 }
             }
-        }
-        
-        String terminalType = null;
-        if (sshEnv.getEnv().containsKey(SSH_ENV_TERM)) {
-            terminalType = sshEnv.getEnv().get(SSH_ENV_TERM);
-        }
-        
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8);
-             Terminal terminal = SshTerminalFactory.createTerminal(is, os, terminalSize, terminalType)
-        ) {
+            
+            String terminalType = null;
+            if (sshEnv.getEnv().containsKey(SSH_ENV_TERM)) {
+                terminalType = sshEnv.getEnv().get(SSH_ENV_TERM);
+            }
+            
+            try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                 PrintStream ps = new PrintStream(baos, true, StandardCharsets.UTF_8);
+                 Terminal terminal = SshTerminalFactory.createTerminal(is, os, terminalSize, terminalType)
+            ) {
 
-            try {
-                Attributes attr = terminal.getAttributes();
-                SshShellUtils.fill(attr, sshEnv.getPtyModes());
-                terminal.setAttributes(attr);
+                try {
+                    Attributes attr = terminal.getAttributes();
+                    SshShellUtils.fill(attr, sshEnv.getPtyModes());
+                    terminal.setAttributes(attr);
 
-                if (sizeAvailable) {
-                    sshEnv.addSignalListener((channel, signal) -> {
-                        terminal.setSize(new Size(
-                                Integer.parseInt(sshEnv.getEnv().get("COLUMNS")),
-                                Integer.parseInt(sshEnv.getEnv().get("LINES"))));
-                        terminal.raise(Terminal.Signal.WINCH);
-                    }, Signal.WINCH);
-                }
-
-                if (properties.isDisplayBanner() && shellBanner != null) {
-                    shellBanner.printBanner(environment, this.getClass(), ps);
-                }
-
-                DefaultResultHandler resultHandler = new DefaultResultHandler(terminal);
-                resultHandler.handleResult(baos.toString(StandardCharsets.UTF_8));
-                resultHandler.handleResult("Please type `help` to see available commands");
-
-                LineReader reader = LineReaderBuilder.builder()
-                        .terminal(terminal)
-                        .appName("Spring Ssh Shell")
-                        .completer(completer)
-                        .highlighter(lineReader.getHighlighter())
-                        .parser(lineReader.getParser())
-                        .build();
-
-                Object authenticationObject = session.getSession().getIoSession().getAttribute(
-                        SshShellSecurityAuthenticationProvider.AUTHENTICATION_ATTRIBUTE);
-                SshAuthentication authentication = null;
-                if (authenticationObject != null) {
-                    if (!(authenticationObject instanceof SshAuthentication)) {
-                        throw new IllegalStateException("Unknown authentication object class: " + authenticationObject.getClass().getName());
+                    if (sizeAvailable) {
+                        sshEnv.addSignalListener((channel, signal) -> {
+                            terminal.setSize(new Size(
+                                    Integer.parseInt(sshEnv.getEnv().get("COLUMNS")),
+                                    Integer.parseInt(sshEnv.getEnv().get("LINES"))));
+                            terminal.raise(Terminal.Signal.WINCH);
+                        }, Signal.WINCH);
                     }
-                    authentication = (SshAuthentication) authenticationObject;
-                }
 
-                File historyFile = properties.getHistoryFile();
-                if (!properties.isSharedHistory()) {
-                    String user = authentication != null ? authentication.getName() : "unknown";
-                    historyFile = new File(properties.getHistoryDirectory(), "sshShellHistory-" + user + ".log");
-                }
-                reader.setVariable(LineReader.HISTORY_FILE, historyFile.toPath());
+                    if (properties.isDisplayBanner() && shellBanner != null) {
+                        shellBanner.printBanner(environment, this.getClass(), ps);
+                    }
 
-                SSH_THREAD_CONTEXT.set(new SshContext(this, terminal, reader, authentication));
-                shellListenerService.onSessionStarted(session);
-                new InteractiveShellRunner(reader, promptProvider, shell, new DefaultShellContext()).run((String[]) null);
-                shellListenerService.onSessionStopped(session);
-                LOGGER.debug("{}: closing", session);
-                quit(0);
-            } catch (Throwable e) {
-                shellListenerService.onSessionError(session);
-                LOGGER.error("{}: unexpected exception", session, e);
+                    DefaultResultHandler resultHandler = new DefaultResultHandler(terminal);
+                    resultHandler.handleResult(baos.toString(StandardCharsets.UTF_8));
+                    resultHandler.handleResult("Please type `help` to see available commands");
+
+                    LineReader reader = LineReaderBuilder.builder()
+                            .terminal(terminal)
+                            .appName("Spring Ssh Shell")
+                            .completer(completer)
+                            .highlighter(lineReader.getHighlighter())
+                            .parser(lineReader.getParser())
+                            .build();
+
+                    Object authenticationObject = session.getSession().getIoSession().getAttribute(
+                            SshShellSecurityAuthenticationProvider.AUTHENTICATION_ATTRIBUTE);
+                    SshAuthentication authentication = null;
+                    if (authenticationObject != null) {
+                        if (!(authenticationObject instanceof SshAuthentication)) {
+                            throw new IllegalStateException("Unknown authentication object class: " + authenticationObject.getClass().getName());
+                        }
+                        authentication = (SshAuthentication) authenticationObject;
+                    }
+
+                    File historyFile = properties.getHistoryFile();
+                    if (!properties.isSharedHistory()) {
+                        String user = authentication != null ? authentication.getName() : "unknown";
+                        historyFile = new File(properties.getHistoryDirectory(), "sshShellHistory-" + user + ".log");
+                    }
+                    reader.setVariable(LineReader.HISTORY_FILE, historyFile.toPath());
+
+                    SSH_THREAD_CONTEXT.set(new SshContext(this, terminal, reader, authentication));
+                    shellListenerService.onSessionStarted(session);
+                    new InteractiveShellRunner(reader, promptProvider, shell, new DefaultShellContext()).run((String[]) null);
+                    shellListenerService.onSessionStopped(session);
+                    LOGGER.debug("{}: closing", session);
+                    quit(0);
+                } catch (Throwable e) {
+                    shellListenerService.onSessionError(session);
+                    LOGGER.error("{}: unexpected exception", session, e);
+                    quit(1);
+                }
+            } catch (IOException e) {
+                LOGGER.error("Unable to open terminal", e);
                 quit(1);
             }
-        } catch (IOException e) {
-            LOGGER.error("Unable to open terminal", e);
-            quit(1);
+        } finally {
+            // Restore the original classloader
+            Thread.currentThread().setContextClassLoader(originalClassLoader);
+            LOGGER.debug("{}: restored classloader", session);
         }
     }
 

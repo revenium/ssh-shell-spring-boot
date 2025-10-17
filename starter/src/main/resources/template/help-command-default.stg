@@ -1,0 +1,22 @@
+group command;
+
+command(command) ::= <<
+<command.name> - <command.description>
+
+USAGE
+  <command.usage>
+
+<if(command.options)>
+OPTIONS
+<command.options:{option | <option(option)>}; separator="\n">
+<endif>
+
+<if(command.aliases)>
+ALIASES
+<command.aliases; separator=", ">
+<endif>
+>>
+
+option(option) ::= <<
+  <option.names; separator=", ">  <option.description><if(option.defaultValue)> (default: <option.defaultValue>)<endif>
+>>

@@ -1,0 +1,1 @@
+$artifact.groupId$:$artifact.artifactId$:$artifact.version$
