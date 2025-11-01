@@ -22,6 +22,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.util.function.IntSupplier;
+
 import static com.github.fonimus.ssh.shell.SshShellCommandFactory.SSH_THREAD_CONTEXT;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -167,7 +169,7 @@ public class SshShellTerminalDelegateTest {
 
     @Test
     public void readMouseEventBis() {
-        del.readMouseEvent(null);
+        del.readMouseEvent((IntSupplier) null);
     }
 
     @Test

@@ -86,7 +86,7 @@ public class SshShellProperties {
 
     private String authProviderBeanName;
 
-    private File hostKeyFile = new File(System.getProperty("java.io.tmpdir"), "hostKey.ser");
+    private Resource hostKeyFile = new FileSystemResource(new File(System.getProperty("java.io.tmpdir"), "hostKey.ser"));
 
     private Resource authorizedPublicKeys;
 
@@ -111,6 +111,25 @@ public class SshShellProperties {
     private Prompt prompt = new Prompt();
 
     private Commands commands = new Commands();
+
+    /**
+     * Set host key file from File object for backwards compatibility
+     * @param file the host key file
+     */
+    public void setHostKeyFileFromFile(File file) {
+        this.hostKeyFile = new FileSystemResource(file);
+    }
+
+    /**
+     * Get host key file as File for backwards compatibility
+     * @return the host key file or null if not a file resource
+     */
+    public File getHostKeyFileAsFile() {
+        if (hostKeyFile instanceof FileSystemResource) {
+            return ((FileSystemResource) hostKeyFile).getFile();
+        }
+        return null;
+    }
 
     public void setAuthorizedPublicKeysFile(File file) {
         this.authorizedPublicKeys = new FileSystemResource(file);

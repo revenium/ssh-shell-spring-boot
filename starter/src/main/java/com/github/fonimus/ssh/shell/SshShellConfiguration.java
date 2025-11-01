@@ -87,7 +87,8 @@ public class SshShellConfiguration {
         SshServer server = SshServer.setUpDefaultServer();
         
         // Configure host key provider to only generate secure key types (no NIST curves)
-        SimpleGeneratorHostKeyProvider keyProvider = new SimpleGeneratorHostKeyProvider(properties.getHostKeyFile().toPath());
+        File hostKeyFile = getHostKeyFile(properties.getHostKeyFile());
+        SimpleGeneratorHostKeyProvider keyProvider = new SimpleGeneratorHostKeyProvider(hostKeyFile.toPath());
         keyProvider.setAlgorithm(KeyUtils.RSA_ALGORITHM);  // Use RSA instead of ECDSA with NIST curves
         keyProvider.setKeySize(3072);  // Use 3072-bit RSA for better security than 2048-bit
         server.setKeyPairProvider(keyProvider);
@@ -186,6 +187,23 @@ public class SshShellConfiguration {
         }
         
         return server;
+    }
+
+    private File getHostKeyFile(Resource hostKeyResource) throws IOException {
+        // For host key files, we need to handle the case where the file doesn't exist yet
+        // The SimpleGeneratorHostKeyProvider will create it if needed
+        if (!hostKeyResource.exists()) {
+            // If the resource doesn't exist but is a file:// URL, return the File object
+            // so SimpleGeneratorHostKeyProvider can create it
+            if ("file".equals(hostKeyResource.getURL().getProtocol())) {
+                return hostKeyResource.getFile();
+            } else {
+                // For non-file resources that don't exist, throw an exception
+                throw new IOException("Host key file resource does not exist and cannot be created: " + hostKeyResource);
+            }
+        }
+        // If the resource exists, use the regular getFile method
+        return getFile(hostKeyResource);
     }
 
     private File getFile(Resource authorizedPublicKeys) throws IOException {
