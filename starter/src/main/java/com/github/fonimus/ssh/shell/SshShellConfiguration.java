@@ -135,7 +135,11 @@ public class SshShellConfiguration {
         }
         server.setPort(properties.getPort());
         server.setShellFactory(channelSession -> shellCommandFactory);
-        server.setCommandFactory((channelSession, s) -> shellCommandFactory);
+        server.setCommandFactory((channelSession, s) -> {
+            // Capture the command string from SSH client and store in context
+            SshShellCommandFactory.SSH_IO_CONTEXT.get().setCommand(s);
+            return shellCommandFactory;
+        });
         
         // Configure secure algorithms only - remove failed algorithms from ssh-audit
         

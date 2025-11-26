@@ -95,7 +95,7 @@ public abstract class AbstractTest {
 
     protected void setRole(String role) {
         SshShellCommandFactory.SSH_THREAD_CONTEXT.set(new SshContext(new SshShellRunnable(properties, null, null,
-                null, null, null, null, null, null, null, null, null, null, null), null, null, new SshAuthentication(
+                null, null, null, null, null, null, null, null, null, null, null, null), null, null, new SshAuthentication(
                 "user", "user", null, null, Collections.singletonList(role))));
     }
 

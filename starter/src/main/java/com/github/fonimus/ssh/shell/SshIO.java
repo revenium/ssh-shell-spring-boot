@@ -35,4 +35,6 @@ public class SshIO {
     private OutputStream os;
 
     private ExitCallback ec;
+
+    private String command;
 }

@@ -85,7 +85,7 @@ public class SshShellCommandFactory
         Thread sshThread = new Thread(new ThreadGroup("ssh-shell"), new SshShellRunnable(
                 properties, shellListenerService, shellBanner.orElse(null),
                 shell, lineReader, promptProvider, completer, environment,
-                channelSession, sshEnv, this, sshIO.getIs(), sshIO.getOs(), sshIO.getEc()),
+                channelSession, sshEnv, this, sshIO.getIs(), sshIO.getOs(), sshIO.getEc(), sshIO.getCommand()),
                 "ssh-session-" + System.nanoTime());
         sshThread.start();
         threads.put(channelSession, sshThread);

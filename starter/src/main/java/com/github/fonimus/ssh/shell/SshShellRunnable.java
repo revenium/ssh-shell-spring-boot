@@ -36,6 +36,8 @@ import org.jline.terminal.Size;
 import org.jline.terminal.Terminal;
 import org.springframework.boot.Banner;
 import org.springframework.core.env.Environment;
+import org.springframework.shell.Input;
+import org.springframework.shell.InputProvider;
 import org.springframework.shell.Shell;
 import org.springframework.shell.context.DefaultShellContext;
 import org.springframework.shell.jline.InteractiveShellRunner;
@@ -75,6 +77,7 @@ public class SshShellRunnable
     private final InputStream is;
     private final OutputStream os;
     private final ExitCallback ec;
+    private final String command;
 
     /**
      * Run ssh session
@@ -134,13 +137,18 @@ public class SshShellRunnable
                         }, Signal.WINCH);
                     }
 
-                    if (properties.isDisplayBanner() && shellBanner != null) {
+                    // Only display banner in interactive mode
+                    if (properties.isDisplayBanner() && shellBanner != null && (command == null || command.trim().isEmpty())) {
                         shellBanner.printBanner(environment, this.getClass(), ps);
                     }
 
                     DefaultResultHandler resultHandler = new DefaultResultHandler(terminal);
                     resultHandler.handleResult(baos.toString(StandardCharsets.UTF_8));
-                    resultHandler.handleResult("Please type `help` to see available commands");
+
+                    // Only show help message in interactive mode
+                    if (command == null || command.trim().isEmpty()) {
+                        resultHandler.handleResult("Please type `help` to see available commands");
+                    }
 
                     LineReader reader = LineReaderBuilder.builder()
                             .terminal(terminal)
@@ -169,10 +177,43 @@ public class SshShellRunnable
 
                     SSH_THREAD_CONTEXT.set(new SshContext(this, terminal, reader, authentication));
                     shellListenerService.onSessionStarted(session);
-                    new InteractiveShellRunner(reader, promptProvider, shell, new DefaultShellContext()).run((String[]) null);
-                    shellListenerService.onSessionStopped(session);
-                    LOGGER.debug("{}: closing", session);
-                    quit(0);
+
+                    // Check if a command was provided (non-interactive mode)
+                    if (command != null && !command.trim().isEmpty()) {
+                        LOGGER.debug("{}: executing command non-interactively: {}", session, command);
+                        try {
+                            // Create a simple one-shot input provider for non-interactive command execution
+                            InputProvider nonInteractiveInputProvider = new InputProvider() {
+                                private boolean commandProvided = false;
+
+                                @Override
+                                public Input readInput() {
+                                    if (!commandProvided) {
+                                        commandProvided = true;
+                                        return () -> command;
+                                    }
+                                    return null; // Signal end of input
+                                }
+                            };
+
+                            // Execute the command using the shell's run method
+                            shell.run(nonInteractiveInputProvider);
+                            LOGGER.debug("{}: command executed successfully", session);
+                            shellListenerService.onSessionStopped(session);
+                            quit(0);
+                        } catch (Exception e) {
+                            LOGGER.error("{}: error executing command: {}", session, command, e);
+                            resultHandler.handleResult(e);
+                            shellListenerService.onSessionStopped(session);
+                            quit(1);
+                        }
+                    } else {
+                        // No command provided, run interactive shell
+                        new InteractiveShellRunner(reader, promptProvider, shell, new DefaultShellContext()).run((String[]) null);
+                        shellListenerService.onSessionStopped(session);
+                        LOGGER.debug("{}: closing", session);
+                        quit(0);
+                    }
                 } catch (Throwable e) {
                     shellListenerService.onSessionError(session);
                     LOGGER.error("{}: unexpected exception", session, e);

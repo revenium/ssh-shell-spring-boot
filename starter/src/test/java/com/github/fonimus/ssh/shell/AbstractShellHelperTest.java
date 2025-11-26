@@ -61,7 +61,7 @@ public abstract class AbstractShellHelperTest {
         Environment sshEnv = mock(Environment.class);
         SshContext ctx = new SshContext(new SshShellRunnable(new SshShellProperties(), null,
                 null, null, null, null, null, null,
-                mockChannelSession(4L), sshEnv, null, null, null, null), ter, lr,
+                mockChannelSession(4L), sshEnv, null, null, null, null, null), ter, lr,
                 new SshAuthentication("user", "user", null, null, auth));
         SshShellCommandFactory.SSH_THREAD_CONTEXT.set(ctx);
         when(ter.getType()).thenReturn("osx");
